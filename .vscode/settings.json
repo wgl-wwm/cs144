@@ -4,6 +4,9 @@
         "list": "cpp",
         "cstddef": "cpp",
         "algorithm": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "optional": "cpp",
+        "utility": "cpp",
+        "type_traits": "cpp"
     }
 }
