@@ -75,12 +75,12 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 
     if(_next_seqno >= abs_ackno) {
 
-        _bytes_in_flight = _next_seqno - abs_ackno;
         const auto iter_end = _segments_map.lower_bound(abs_ackno);
         auto iter = _segments_map.begin();
 
         bool flag = false;
         for(;iter != iter_end;) {
+            _bytes_in_flight -= iter->second.length_in_sequence_space();
             iter = _segments_map.erase(iter);
             flag = true;
         }
