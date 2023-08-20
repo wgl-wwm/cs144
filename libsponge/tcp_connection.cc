@@ -25,12 +25,13 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     const TCPHeader header = seg.header();
 
     if(TCPState::state_summary(_sender) == TCPSenderStateSummary::SYN_SENT) {
+        // SYN_SENT 状态下不接受data
         if(seg.payload().size()) return;
+        // SYN_SENT 状态下 收到不含ack的rst 直接忽略
         if(header.rst && !header.ack) return;   
     }
     
     if(header.rst) {
-        if(TCPState::state_summary(_sender) == TCPSenderStateSummary::SYN_SENT && header.ack && seg.payload().copy().size()) return;
 
         _receiver.stream_out().set_error();
         _sender.stream_in().set_error();
@@ -58,6 +59,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             _active = false;
             return;
         }
+        // if a unacceptable ackno, send a ACK back
         if(!_sender.ack_received(header.ackno, header.win)) {
             send_empty = true;
         }
@@ -89,7 +91,7 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         return;
     }
 
-    // 如果收到的seg 1.有数据，就要回一个ACK 2. seg中的ack超过了， 也要发ack 3. 收到的seqno 与receiver的ackno 不一致
+    // 如果收到的seg 1.有数据，就要回一个ACK 2. seg中的ackno超过了， 也要发ACK 3. 收到的seqno 与receiver的ackno 不一致
     if((seg.length_in_sequence_space() || send_empty || seg.header().seqno != _receiver.ackno().value()) && _segments_out.empty()) {
         _sender.send_empty_segment();
     }
