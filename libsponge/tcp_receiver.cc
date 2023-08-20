@@ -33,7 +33,7 @@ bool TCPReceiver::segment_received(const TCPSegment &seg) {
 
 
     if (header.fin) {
-        if (_set_fin_flag) {
+        if (_set_fin_flag || !_set_syn_flag) {
             return false;
         }
         _set_fin_flag = true;

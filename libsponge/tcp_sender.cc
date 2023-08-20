@@ -34,6 +34,7 @@ void TCPSender::fill_window() {
 
     while(window_size > _bytes_in_flight) {
         TCPSegment segment;
+        // 这里本应该直接发送syn包，但_last_window_size 初始化的时候是1 第一次发包一定只包含syn
         if(!_set_syn_flag) {
             segment.header().syn = true;
             _set_syn_flag = true;
@@ -70,6 +71,7 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
     // 如果ackno 是任何TCPSender没有发送过的字节编号， 则返回 false
     size_t abs_ackno = unwrap(ackno, _isn,_next_seqno);
 
+    if(_next_seqno < abs_ackno) return false;
     _last_window_size = window_size;
     _consecutive_retransmissions_count = 0;
 
@@ -91,7 +93,6 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         }
     }
     fill_window();
-    if(_next_seqno < abs_ackno) return false;
     return true;
 }
 
