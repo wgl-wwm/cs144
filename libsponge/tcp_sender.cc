@@ -100,7 +100,11 @@ bool TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
 void TCPSender::tick(const size_t ms_since_last_tick) { 
     _timer += ms_since_last_tick;
 
-    if(!_segments_map.empty() && _timer >= _timeOut) {
+    // 如果没有跟踪的包，timer = 0
+    if(_segments_map.empty()) {
+        _timer = 0;
+    }
+    if(!_segments_map.empty() && _timer >= _timeOut) {        
         auto earliest_segment = _segments_map.begin()->second;
 
         if(_last_window_size > 0) {
