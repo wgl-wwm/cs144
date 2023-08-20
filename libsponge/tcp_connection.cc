@@ -30,6 +30,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     }
     
     if(header.rst) {
+        if(TCPState::state_summary(_sender) == TCPSenderStateSummary::SYN_SENT && header.ack && seg.payload().copy().size()) return;
+
         _receiver.stream_out().set_error();
         _sender.stream_in().set_error();
         _linger_after_streams_finish = false;
@@ -43,8 +45,10 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     bool send_empty = false;
     if(header.ack) {
         // // 监听状态下收到ack 直接rst
-        if(TCPState::state_summary(_sender) == TCPSenderStateSummary::CLOSED) {
+        if(TCPState::state_summary(_receiver) == TCPReceiverStateSummary::LISTEN &&
+        TCPState::state_summary(_sender) == TCPSenderStateSummary::CLOSED ) {
             TCPSegment s;
+            s.header().seqno = header.ackno;
             s.header().rst = true;
             _segments_out.push(s);
 
@@ -58,6 +62,11 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
             send_empty = true;
         }
         _add_segment_with_ack_and_win_and_out();
+    }
+
+    if(TCPState::state_summary(_receiver) == TCPReceiverStateSummary::LISTEN &&
+    TCPState::state_summary(_sender) == TCPSenderStateSummary::CLOSED) {
+        return;
     }
 
     if(TCPState::state_summary(_receiver) == TCPReceiverStateSummary::SYN_RECV &&
@@ -80,11 +89,11 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         return;
     }
 
-    // 如果收到的seg 1.有数据，就要回一个ACK 2. seg中的ack超过了， 也要发ack
-    if((seg.length_in_sequence_space() || send_empty) && _segments_out.empty()) {
+    // 如果收到的seg 1.有数据，就要回一个ACK 2. seg中的ack超过了， 也要发ack 3. 收到的seqno 与receiver的ackno 不一致
+    if((seg.length_in_sequence_space() || send_empty || seg.header().seqno != _receiver.ackno().value()) && _segments_out.empty()) {
         _sender.send_empty_segment();
-        _add_segment_with_ack_and_win_and_out();
     }
+    _add_segment_with_ack_and_win_and_out();
 
 }
 
