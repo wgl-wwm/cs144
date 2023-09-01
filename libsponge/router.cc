@@ -29,14 +29,34 @@ void Router::add_route(const uint32_t route_prefix,
     cerr << "DEBUG: adding route " << Address::from_ipv4_numeric(route_prefix).ip() << "/" << int(prefix_length)
          << " => " << (next_hop.has_value() ? next_hop->ip() : "(direct)") << " on interface " << interface_num << "\n";
 
-    DUMMY_CODE(route_prefix, prefix_length, next_hop, interface_num);
-    // Your code here.
+    _route_table.push_back({route_prefix, prefix_length, next_hop, interface_num});
 }
 
 //! \param[in] dgram The datagram to be routed
 void Router::route_one_datagram(InternetDatagram &dgram) {
-    DUMMY_CODE(dgram);
-    // Your code here.
+    const uint32_t dst_ip_addr = dgram.header().dst;
+    auto chosen_route = _route_table.end();
+
+    for(auto iter = _route_table.begin(); iter != _route_table.end(); iter ++) {
+        // 如果prefix长度为0 或者匹配成功
+        if(iter->prefix_length == 0 || ((iter->route_prefix ^ dst_ip_addr) >> (32 - iter->prefix_length) == 0) ) {
+            if(chosen_route == _route_table.end() || iter->prefix_length > chosen_route->prefix_length) {
+                chosen_route = iter;
+            }
+        }
+    }
+
+    if(chosen_route != _route_table.end() && dgram.header().ttl > 1) {
+        dgram.header().ttl --;
+        // 如果下一跳非空
+        if(chosen_route->next_hop.has_value()) {
+            _interfaces[chosen_route->interface_num].send_datagram(dgram, chosen_route->next_hop.value());
+        }
+        else{
+            _interfaces[chosen_route->interface_num].send_datagram(dgram, Address::from_ipv4_numeric(dst_ip_addr));
+        }
+
+    }
 }
 
 void Router::route() {
