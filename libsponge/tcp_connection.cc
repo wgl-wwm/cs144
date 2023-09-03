@@ -28,7 +28,8 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         // SYN_SENT 状态下不接受data
         if(seg.payload().size()) return;
         // SYN_SENT 状态下 收到不含ack的rst 直接忽略
-        if(header.rst && !header.ack) return;   
+        if(header.rst && !header.ack) return; 
+        if(header.ack && header.ackno.raw_value() != _sender.next_seqno().raw_value()) return;  
     }
     
     if(header.rst) {
@@ -46,19 +47,19 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
     bool send_empty = false;
     if(header.ack) {
         // // 监听状态下收到ack 直接rst
-        if(TCPState::state_summary(_receiver) == TCPReceiverStateSummary::LISTEN &&
-        TCPState::state_summary(_sender) == TCPSenderStateSummary::CLOSED ) {
-            TCPSegment s;
-            s.header().seqno = header.ackno;
-            s.header().rst = true;
-            _segments_out.push(s);
+        // if(TCPState::state_summary(_receiver) == TCPReceiverStateSummary::LISTEN &&
+        // TCPState::state_summary(_sender) == TCPSenderStateSummary::CLOSED ) {
+        //     TCPSegment s;
+        //     s.header().seqno = header.ackno;
+        //     s.header().rst = true;
+        //     _segments_out.push(s);
 
-            _sender.stream_in().set_error();
-            _receiver.stream_out().set_error();
-            _linger_after_streams_finish = false;
-            _active = false;
-            return;
-        }
+        //     _sender.stream_in().set_error();
+        //     _receiver.stream_out().set_error();
+        //     _linger_after_streams_finish = false;
+        //     _active = false;
+        //     return;
+        // }
         // if a unacceptable ackno, send a ACK back
         if(!_sender.ack_received(header.ackno, header.win)) {
             send_empty = true;
